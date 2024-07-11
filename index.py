@@ -6,67 +6,38 @@ from models import Model
 from style import custom_css
 from data import Data
 import socket
-import requests
 
 class Main:
-    _initialized = False
-    _qdrant_db = None
-    _mongo_db = None
-    _model = None
-    _current_data = None
-    _store_qdrant = None
-    _retriever = None
-    _ip = None
-    _embedding_model = None
+    @staticmethod
+    def initialize():
+        if "initialized" not in st.session_state:
+            st.session_state.chat_collection = MONGODB_CONFIG["CHAT_HISTORY"]
+            st.session_state.login_collection =  MONGODB_CONFIG["LOGIN_HISTORY"]
+            st.session_state.ban_collection = MONGODB_CONFIG["BAN_COLLECTION"]
+            st.session_state.mode_chat = MODEL_CONFIG["CHAT"]
+            st.session_state.model_embed = MODEL_CONFIG["EMBEDDED"]
+            st.session_state.chat_db = MONGODB_CONFIG["CHAT_DB"]
+            st.session_state.mongodb = MongoManager.initialize(MONGODB_CONFIG["URI"], MONGODB_CONFIG["DATABASE"])
+            st.session_state.qdrant_db = QdrantManager.get_instance(QDRANT_CONFIG["URL"], QDRANT_CONFIG["API_KEY"])
+            if "messages" not in st.session_state:
+                st.session_state.messages = []
+            st.session_state.model = Model(MODEL_CONFIG["API_KEY"])
+            st.session_state.embedding_model = st.session_state.model.get_embedding_model()
+            st.session_state.current_data = st.session_state.mongodb.find_one(MONGODB_CONFIG["CHAT_DB"], {"key": "DATABASE_CONFIG"})["selected_db"]
+            st.session_state.store_qdrant = st.session_state.qdrant_db.get_store(st.session_state.current_data, st.session_state.embedding_model)
+            st.session_state.retriever = st.session_state.qdrant_db.get_retriever(st.session_state.store_qdrant)
+            st.session_state.ip = socket.gethostbyname(socket.gethostname())
+            st.session_state.initialized = True
+            st.session_state.Data = Data
 
-    # @staticmethod
-    # def client_ip():
-    #     url = 'https://api.ipify.org?format=json'
-    #     try:
-    #         response = requests.get(url)
-    #         response.raise_for_status()
-    #         ip_data = response.json()
-    #         return ip_data.get('ip')
-    #     except requests.RequestException as e:
-    #         st.error(f"Error fetching IP: {e}")
-    #         return None
 
-    @classmethod
-    # @st.cache_resource
-    def initialize(cls):
-        if not cls._initialized:
-            cls._qdrant_db = QdrantManager.get_instance(QDRANT_CONFIG["URL"], QDRANT_CONFIG["API_KEY"])
-            cls._mongo_db = MongoManager.initialize(MONGODB_CONFIG["URI"], MONGODB_CONFIG["DATABASE"])
-            cls._model = Model(MODEL_CONFIG["API_KEY"])
-            cls._embedding_model = cls._model.get_embedding_model()
-            cls._current_data = cls._mongo_db.find_one(MONGODB_CONFIG["CHAT_DB"], {"key": "DATABASE_CONFIG"})["selected_db"]
-            cls._store_qdrant = cls._qdrant_db.get_store(cls._current_data, cls._embedding_model)
-            cls._retriever = cls._qdrant_db.get_retriever(cls._store_qdrant)
-            cls._ip = socket.gethostbyname(socket.gethostname())
-            cls._initialized = True
 
-    @classmethod
-    def config_ui(cls):
-        cls.initialize()
-        Manager(
-            cls._mongo_db,
-            MONGODB_CONFIG["CHAT_HISTORY"],
-            MONGODB_CONFIG["LOGIN_HISTORY"],
-            MONGODB_CONFIG["BAN_COLLECTION"],
-            MODEL_CONFIG["CHAT"],
-            MODEL_CONFIG["EMBEDDED"],
-            cls._ip
-        )
-        Collections(cls._qdrant_db, cls._mongo_db, MONGODB_CONFIG["CHAT_DB"])
-        Upload(cls._qdrant_db, cls._embedding_model, Data)
-        Chat(cls._mongo_db, MONGODB_CONFIG["CHAT_HISTORY"], cls._qdrant_db, cls._current_data, cls._retriever,
-             cls._model, cls._ip)
 
-    @classmethod
-    def display(cls):
+    @staticmethod
+    def display():
         st.set_page_config(page_title="IUH - Truy vấn dữ liệu", page_icon="🏫")
         st.markdown(custom_css, unsafe_allow_html=True)
-        cls.config_ui()
+        Main.initialize()
 
         if "logged_in" not in st.session_state:
             st.session_state.logged_in = False
@@ -74,19 +45,17 @@ class Main:
             st.session_state.user_role = None
 
         if not st.session_state.logged_in:
-            Login.show(cls._mongo_db, MONGODB_CONFIG["ACCOUNT"], MONGODB_CONFIG["LOGIN_HISTORY"], MONGODB_CONFIG["BAN_COLLECTION"], cls._ip)
+            Login.show(st.session_state.mongodb, MONGODB_CONFIG["ACCOUNT"], MONGODB_CONFIG["LOGIN_HISTORY"],
+                                  MONGODB_CONFIG["BAN_COLLECTION"], st.session_state.ip)
         else:
-            cls.build_navigation()
-        # st.write(cls.client_ip())
-    @classmethod
-    def build_navigation(cls):
-        cls.initialize()
-        if st.session_state.user_role == "admin":
-            menu_items = ["Trang chủ", "Quản lý", "Upload PDF", "Xem bộ sưu tập", "Chatbot"]
-        else:  # guest
-            menu_items = ["Trang chủ", "Chatbot"]
+            Main.build_navigation()
 
-        page = cls.create_sidebar_menu(menu_items)
+
+    @staticmethod
+    def build_navigation():
+        Main.initialize()
+        menu_items = ["Trang chủ", "Quản lý", "Upload PDF", "Xem bộ sưu tập", "Chatbot"] if st.session_state.user_role == "admin" else ["Trang chủ", "Chatbot"]
+        page = Main.create_sidebar_menu(menu_items)
 
         match page:
             case "Trang chủ":
@@ -108,7 +77,6 @@ class Main:
         for item in items:
             if st.sidebar.button(item, key=item, help=f"Chuyển đến {item}", use_container_width=True):
                 st.session_state.current_page = item
-
 
         if st.sidebar.button("Đăng xuất", key="logout", help="Đăng xuất khỏi hệ thống", use_container_width=True, type="primary"):
             Login.logout()

@@ -3,36 +3,26 @@ from datetime import datetime
 
 
 class Collections:
-    _qdrant = None
-    _mongodb = None
-    _chat_db = None
 
-    def __new__(cls, qdrant, mongodb, chat_db):
-        if not cls._mongodb or not cls._qdrant:
-            cls._qdrant = qdrant
-            cls._mongodb = mongodb
-            cls._chat_db = chat_db
-
-
-    @classmethod
-    def get_collections(cls):
+    @staticmethod
+    def get_collections():
         try:
             return [{
                 'DatabaseName': col['name'],
                 'Document Count': col['points_count'],
                 'Vector Size': col['vector_size'],
                 'Distance Metric': col['distance_metric']
-            } for col in cls._qdrant.get_collections()]
+            } for col in st.session_state.qdrant_db.get_collections()]
         except Exception as e:
             st.error(f"Lỗi khi lấy thông tin collections: {str(e)}")
             return None
 
-    @classmethod
-    def update_selected_database(cls, database_name):
+    @staticmethod
+    def update_selected_database(database_name):
         try:
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            result = cls._mongodb.update_one(
-                cls._chat_db,
+            result = st.session_state.mongodb.update_one(
+                st.session_state.chat_db,
                 {"key": "DATABASE_CONFIG"},
                 {
                     "selected_db": database_name,
@@ -50,10 +40,10 @@ class Collections:
             st.error(f"Lỗi khi cập nhật database cho chat bot: {str(e)}")
             return None
 
-    @classmethod
-    def get_selected_database(cls):
+    @staticmethod
+    def get_selected_database():
         try:
-            result = cls._mongodb.find_one(cls._chat_db, {"key": "DATABASE_CONFIG"})
+            result = st.session_state.mongodb.find_one(st.session_state.chat_db, {"key": "DATABASE_CONFIG"})
             if result:
                 return result.get('selected_db')
             else:
@@ -65,14 +55,14 @@ class Collections:
                     "create_time": current_time,
                     "update_time": current_time
                 }
-                cls._mongodb.insert_one(cls._chat_db, default_config)
+                st.session_state.mongodb.insert_one(st.session_state.chat_db, default_config)
                 return None
         except Exception as e:
             st.error(f"Lỗi khi lấy SELECTED_DATABASE: {str(e)}")
             return None
 
-    @classmethod
-    def display_collection(cls, col, current_collection):
+    @staticmethod
+    def display_collection(col, current_collection):
         with st.expander(f"{col['DatabaseName']} - {col['Document Count']} documents"):
             st.write(f"Vector Size: {col['Vector Size']}")
             st.write(f"Distance Metric: {col['Distance Metric']}")
@@ -81,7 +71,7 @@ class Collections:
 
             if current_collection != col['DatabaseName']:
                 if col1.button("Chọn làm Database cho Chatbot", key=f"select_{col['DatabaseName']}"):
-                    result = cls.update_selected_database(col['DatabaseName'])
+                    result = Collections.update_selected_database(col['DatabaseName'])
                     if result.modified_count > 0 or result.upserted_id:
                         st.success(f"Đã cập nhật SELECTED_DATABASE thành {col['DatabaseName']}")
                         st.rerun()
@@ -104,7 +94,7 @@ class Collections:
                             st.write(f"Bạn có chắc chắn muốn xóa collection '{col['DatabaseName']}'?")
                             confirmation_input = st.text_input("Nhập tên collection để xác nhận:", key=confirm_key)
 
-                            col1, col2 = st.columns([2.5,6])
+                            col1, col2 = st.columns([2.5, 6])
                             with col1:
                                 submit = st.form_submit_button("Xác nhận xóa")
                             with col2:
@@ -112,7 +102,7 @@ class Collections:
 
                             if submit:
                                 if confirmation_input == col['DatabaseName']:
-                                    if cls._qdrant.delete_collection(col['DatabaseName']):
+                                    if st.session_state.qdrant_db.delete_collection(col['DatabaseName']):
                                         st.success(f"Đã xóa collection: {col['DatabaseName']}")
                                         st.session_state.collections_changed = True
                                         st.session_state[delete_key] = False
@@ -134,24 +124,19 @@ class Collections:
             else:
                 col1.info("Database đang được sử dụng cho Chatbot")
 
-    @classmethod
-    def show(cls):
+    @staticmethod
+    def show():
+        if "collections_changed" not in st.session_state:
+            st.session_state.collections_changed = False
         st.html("<h1 class='centered-title'>QUẢN LÝ DỮ LIỆU</h1>")
-        collections = cls.get_collections()
+        collections = Collections.get_collections()
         if collections is None:
             if st.button("Làm mới"):
                 st.rerun()
         elif not collections:
             st.warning("Không có cơ sỡ dữ liệu")
         else:
-            current_collection = cls.get_selected_database()
+            current_collection = Collections.get_selected_database()
             for col in collections:
-                cls.display_collection(col, current_collection)
+                Collections.display_collection(col, current_collection)
             st.write(f"Database hiện tại cho Chatbot: **{current_collection}**")
-
-
-
-
-
-
-

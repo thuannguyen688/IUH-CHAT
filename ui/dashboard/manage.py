@@ -4,26 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 from collections import Counter
-import requests
-
 
 class Manager:
-    _mongodb = None
-    _chat_collection = None
-    _login_collection = None
-    _ban_collection = None
-    _model_chat = None
-    _model_embed = None
-    _ip = None
-    def __new__(cls, mongo_store, chat_collection, login_collection, ban_collection, model_chat, model_embed, ip):
-        if not cls._mongodb:
-            cls._mongodb = mongo_store
-            cls._chat_collection = chat_collection
-            cls._login_collection = login_collection
-            cls._ban_collection = ban_collection
-            cls._model_chat = model_chat
-            cls._model_embed = model_embed
-            cls._ip = ip
+
+
     @staticmethod
     def calculate_metrics(df):
         if df.empty:
@@ -54,19 +38,28 @@ class Manager:
 
     @classmethod
     def show(cls):
-        data = list(cls._mongodb.find_many(
-            cls._chat_collection, {}
-        ))
+
+
+        if "data" not in st.session_state:
+            st.session_state.data = list(st.session_state.mongodb.find_many(
+                st.session_state.chat_collection, {}
+            ))
+
+        if "login_data" not in st.session_state:
+            st.session_state.login_data = list(st.session_state.mongodb.find_many(
+                st.session_state.login_collection, {}
+            ))
+
+        data = st.session_state.data
+        login_data = st.session_state.login_data
+
         st.html('<p class="big-font">QUẢN LÝ HỆ THỐNG</p>')
 
         df = pd.DataFrame(data)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        login_data = list(cls._mongodb.find_many(cls._login_collection, {}))
-        login_df = None
-        if login_data:
-            login_df = pd.DataFrame(login_data)
-            login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+        login_df = pd.DataFrame(login_data)
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
 
         # Summary statistics
         st.html('<p class="medium-font">Thống Kê Tổng Quan</p>')
@@ -120,10 +113,11 @@ class Manager:
             delta=cls.format_delta(
                 cls.calc_percent_change(metrics_today['max_processing_time'], metrics_yesterday['max_processing_time']))
         )
-        # # Visualizations
+
+        # Visualizations
         st.html('<p class="medium-font">Biểu Đồ Thống Kê</p>')
 
-        # # Line chart for processing times
+        # Line chart for processing times
         fig_line = px.line(df, x='timestamp', y='processing_time', title='Thời Gian Xử Lý Theo Thời Gian')
         fig_line.update_layout(xaxis_title="Thời Gian", yaxis_title="Thời Gian Xử Lý (giây)")
         st.plotly_chart(fig_line, use_container_width=True)
@@ -131,7 +125,7 @@ class Manager:
         # IP with most requests
         st.html('<p class="medium-font">IP Gửi Nhiều Request Nhất</p>')
 
-        banned_usernames = set(doc['username'] for doc in cls._mongodb.find_many(cls._ban_collection, {}))
+        banned_usernames = set(doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
 
         if login_df is not None and not login_df.empty:
             # Lọc các username không bị cấm
@@ -150,14 +144,14 @@ class Manager:
             for username, count in top_usernames:
                 col1, col2, col3 = st.columns([2, 1, 1])
                 col1.write(
-                    f":red[Username: {username} (Bạn)]" if username == cls._username else f"Username: {username}")
+                    f":red[Username: {username} (Bạn)]" if username == st.session_state.username else f"Username: {username}")
                 col2.write(f"Số lượng: {count}")
-                if username != cls._username and username not in banned_usernames:
+                if username != st.session_state.username and username not in banned_usernames:
                     if col3.button(f"Ban {username}", key=f"ban_{username}"):
-                        cls._mongodb.insert_one(cls._ban_collection,
-                                                {"username": username, "banned_at": datetime.now()})
+                        st.session_state.mongodb.insert_one(st.session_state.ban_collection,
+                                                            {"username": username, "banned_at": datetime.now()})
                         st.success(f"Đã ban username {username}")
-                        st.rerun()
+                        st.experimental_rerun()
 
             # Hiển thị biểu đồ cột cho top username
             username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
@@ -168,7 +162,7 @@ class Manager:
             # Danh sách username đã bị cấm
             st.markdown('<p class="medium-font">Danh Sách Username Đã Bị Cấm</p>', unsafe_allow_html=True)
 
-            banned_usernames_data = list(cls._mongodb.find_many(cls._ban_collection, {}))
+            banned_usernames_data = list(st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
             if banned_usernames_data:
                 banned_df = pd.DataFrame(banned_usernames_data)
                 banned_df['banned_at'] = pd.to_datetime(banned_df['banned_at'])
@@ -179,9 +173,9 @@ class Manager:
                     col1.write(f"Username: {row['username']}")
                     col2.write(f"Bị cấm lúc: {row['banned_at'].strftime('%Y-%m-%d %H:%M:%S')}")
                     if col3.button(f"Gỡ ban", key=f"unban_{row['username']}"):
-                        cls._mongodb.delete_one(cls._ban_collection, {"username": row['username']})
+                        st.session_state.mongodb.delete_one(st.session_state.ban_collection, {"username": row['username']})
                         st.success(f"Đã gỡ cấm username {row['username']}")
-                        st.rerun()
+                        st.experimental_rerun()
             else:
                 st.write("Không có username nào bị cấm.")
         else:
@@ -224,5 +218,5 @@ class Manager:
         col1, col2, col3 = st.columns(3)
         col1.info(f"**Vector Store:** Qdrant")
         col3.info(f"**NoSQL Store:** MongoDB")
-        col2.info(f"**Chat Model:** {cls._model_chat}")
-        st.info(f"**Embedded Model:** {cls._model_embed}")
+        col2.info(f"**Chat Model:** {st.session_state.mode_chat}")
+        st.info(f"**Embedded Model:** {st.session_state.model_embed}")
