@@ -25,7 +25,7 @@ class Chat:
             "input_word_count": len(question.split()),
             "output_word_count": len(answer.split()),
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "ip_address": st.session_state.ip,
+            "username": st.session_state.username,
         }
         st.session_state.mongodb.insert_one(st.session_state.chat_collection, chat_record)
 

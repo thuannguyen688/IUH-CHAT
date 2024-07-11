@@ -17,13 +17,19 @@ class Main:
             st.session_state.mode_chat = MODEL_CONFIG["CHAT"]
             st.session_state.model_embed = MODEL_CONFIG["EMBEDDED"]
             st.session_state.chat_db = MONGODB_CONFIG["CHAT_DB"]
-            st.session_state.mongodb = MongoManager.initialize(MONGODB_CONFIG["URI"], MONGODB_CONFIG["DATABASE"])
-            st.session_state.qdrant_db = QdrantManager.get_instance(QDRANT_CONFIG["URL"], QDRANT_CONFIG["API_KEY"])
+            st.session_state.mongo_uri = MONGODB_CONFIG["URI"]
+            st.session_state.mongo_database = MONGODB_CONFIG["DATABASE"]
+            st.session_state.qdrant_url = QDRANT_CONFIG["URL"]
+            st.session_state.qdrant_api_key = QDRANT_CONFIG["API_KEY"]
+            st.session_state.account_collection = MONGODB_CONFIG["ACCOUNT"]
+
+            st.session_state.mongodb = MongoManager.initialize(st.session_state.mongo_uri, st.session_state.mongo_database)
+            st.session_state.qdrant_db = QdrantManager.get_instance(st.session_state.qdrant_url, st.session_state.qdrant_api_key)
             if "messages" not in st.session_state:
                 st.session_state.messages = []
             st.session_state.model = Model(MODEL_CONFIG["API_KEY"])
             st.session_state.embedding_model = st.session_state.model.get_embedding_model()
-            st.session_state.current_data = st.session_state.mongodb.find_one(MONGODB_CONFIG["CHAT_DB"], {"key": "DATABASE_CONFIG"})["selected_db"]
+            st.session_state.current_data = st.session_state.mongodb.find_one(st.session_state.chat_db, {"key": "DATABASE_CONFIG"})["selected_db"]
             st.session_state.store_qdrant = st.session_state.qdrant_db.get_store(st.session_state.current_data, st.session_state.embedding_model)
             st.session_state.retriever = st.session_state.qdrant_db.get_retriever(st.session_state.store_qdrant)
             st.session_state.ip = socket.gethostbyname(socket.gethostname())
@@ -45,8 +51,8 @@ class Main:
             st.session_state.user_role = None
 
         if not st.session_state.logged_in:
-            Login.show(st.session_state.mongodb, MONGODB_CONFIG["ACCOUNT"], MONGODB_CONFIG["LOGIN_HISTORY"],
-                                  MONGODB_CONFIG["BAN_COLLECTION"], st.session_state.ip)
+            Login.show(st.session_state.mongodb, st.session_state.account_collection, st.session_state.login_collection,
+                                  st.session_state.ban_collection, st.session_state.ip)
         else:
             Main.build_navigation()
 
@@ -62,11 +68,11 @@ class Main:
                 Home.show()
             case "Quản lý":
                     st.html("<h2 class='centered-title'>QUẢN LÝ HỆ THỐNG</h2>")
-                    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Tổng quan", "Biểu đồ", "Tài khoản", "Tin nhắn", "Thông tin"])
+                    tab1, tab3, tab4, tab5 = st.tabs(["Tổng quan","Tài khoản", "Tin nhắn", "Thông tin"])
                     with tab1:
                         General.show()
-                    with tab2:
-                        TimeProcessVisualize.show()
+                    # with tab2:
+                    #     TimeProcessVisualize.show()
                     with tab3:
                         AccountManager.show()
                     with tab4:

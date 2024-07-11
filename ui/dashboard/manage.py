@@ -4,7 +4,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 from collections import Counter
-
+import plotly.graph_objects as go
+import psutil
+import platform
+import time
+import re
 class General:
     @staticmethod
     def calculate_metrics(df):
@@ -40,11 +44,18 @@ class General:
                 st.session_state.chat_collection, {}
             ))
 
-        data = st.session_state.data
-        df = pd.DataFrame(data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        if "login_data" not in st.session_state:
+            st.session_state.login_data = list(st.session_state.mongodb.find_many(
+                st.session_state.login_collection, {}
+            ))
 
-        # st.html('<p class="medium-font">Thống Kê Tổng Quan</p>')
+        data = st.session_state.data
+        login_data = st.session_state.login_data
+        df = pd.DataFrame(data)
+        login_df = pd.DataFrame(login_data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+
         col1, col2, col3, col4, col5 = st.columns(5)
 
         today = datetime.now().date()
@@ -93,6 +104,32 @@ class General:
         )
 
 
+        # Thời gian sử dụng
+        total_usage_time = df['processing_time'].sum() / 60  # in minutes
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Tổng thời gian xử lý (phút)", f"{total_usage_time:.2f}")
+
+        # Thống kê người dùng
+        active_users_today = df_today['username'].nunique()
+        active_users_week = df[df['timestamp'] > (datetime.now() - timedelta(days=7))]['username'].nunique()
+        avg_question_length = df['input_word_count'].mean()
+        avg_answer_length = df['output_word_count'].mean()
+
+
+        col2.metric("Độ dài TB câu hỏi (từ)", f"{avg_question_length:.2f}")
+
+
+        col3.metric("Độ dài TB câu trả lời (từ)", f"{avg_answer_length:.2f}")
+
+
+
+
+
+
+
+
+
+
 class TimeProcessVisualize:
     @classmethod
     def show(cls):
@@ -110,11 +147,41 @@ class TimeProcessVisualize:
         fig_line = px.line(df, x='timestamp', y='processing_time', title='Thời Gian Xử Lý Theo Thời Gian')
         fig_line.update_layout(xaxis_title="Thời Gian", yaxis_title="Thời Gian Xử Lý (giây)")
         st.plotly_chart(fig_line, use_container_width=True)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        # Group the data by date
+        df['date'] = df['timestamp'].dt.date
+        df_daily = df.groupby('date').agg({
+            'processing_time': ['mean', 'max']
+        }).reset_index()
+
+        # Rename columns for easier access
+        df_daily.columns = ['date', 'avg_processing_time', 'max_processing_time']
+
+        # Create the figure
+        fig = go.Figure()
+
+        # Add the bar trace for average processing time
+        fig.add_trace(go.Bar(x=df_daily['date'], y=df_daily['avg_processing_time'], name='Trung bình'))
+
+        # Add the line trace for maximum processing time
+        fig.add_trace(go.Scatter(x=df_daily['date'], y=df_daily['max_processing_time'], name='Tối đa', mode='lines'))
+
+        # Update the layout
+        fig.update_layout(
+            title='Thời gian xử lý theo ngày',
+            xaxis_title='Ngày',
+            yaxis_title='Thời gian (giây)'
+        )
+
+        # Display the figure in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
 
 
 class AccountManager:
     @classmethod
     def show(cls):
+
         if "login_data" not in st.session_state:
             st.session_state.login_data = list(st.session_state.mongodb.find_many(
                 st.session_state.login_collection, {}
@@ -123,7 +190,16 @@ class AccountManager:
         login_data = st.session_state.login_data
         login_df = pd.DataFrame(login_data)
         login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+        banned_usernames = set(
+            doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
 
+        total_accounts = len(login_df['username'].unique())
+        active_accounts = total_accounts - len(banned_usernames)
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Tổng số tài khoản", total_accounts)
+        col2.metric("Tài khoản đang hoạt động", active_accounts)
+        col3.metric("Tài khoản bị chặn", len(banned_usernames))
         # st.html('<p class="medium-font">IP Gửi Nhiều Request Nhất</p>')
 
         banned_usernames = set(doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
@@ -140,19 +216,29 @@ class AccountManager:
 
             for username, count in top_usernames:
                 col1, col2, col3 = st.columns([2, 1, 1])
-                # col1.write(
-                #     f":red[Username: {username} (Bạn)]" if username == st.session_state.username else f"Username: {username}")
-                # col2.write(f"Số lượng: {count}")
-                col1.write(
-                    "" if username == st.session_state.username else f"Username: {username}")
-                col2.write("" if username == st.session_state.username else f"Số lượng: {count}")
-                if username != st.session_state.username and username not in banned_usernames:
+
+                if username == st.session_state.username:
+                    col1.markdown(f"<span style='color: #1E90FF;'><strong>Username: {username}</strong></span>",
+                                  unsafe_allow_html=True)
+                    col2.markdown(f"<span style='color: #1E90FF;'><strong>Số lượng: {count}</strong></span>",
+                                  unsafe_allow_html=True)
+                elif username in banned_usernames:
+                    col1.markdown(f"<span style='color: #DC143C;'>Username: {username}</span>", unsafe_allow_html=True)
+                    col2.write(f"Số lượng: {count}")
+                else:
+                    col1.write(f"Username: {username}")
+                    col2.write(f"Số lượng: {count}")
+
+                if username == st.session_state.username:
+                    col3.markdown("<span style='color: #1E90FF;'>(Tài khoản của bạn)</span>", unsafe_allow_html=True)
+                elif username in banned_usernames:
+                    col3.markdown("<span style='color: #DC143C;'>(Đã bị chặn)</span>", unsafe_allow_html=True)
+                else:
                     if col3.button("Chặn", key=f"ban_{username}"):
                         st.session_state.mongodb.insert_one(st.session_state.ban_collection,
                                                             {"username": username, "banned_at": datetime.now()})
                         st.success(f"Đã chặn username {username}")
                         st.rerun()
-
             # username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
             # fig_username = px.bar(username_df, x='Username', y='Số lượng truy cập',
             #                       title=f'Top {num_usernames} username có nhiều truy cập nhất')
@@ -175,9 +261,12 @@ class AccountManager:
                         st.success(f"Đã gỡ cấm username {row['username']}")
                         st.experimental_rerun()
             else:
-                st.write("Không có username nào bị cấm.")
+                st.write("Không có username nào bị chặn.")
         else:
             st.write("Không có dữ liệu đăng nhập.")
+
+
+
 
 
 class SearchMessageManager:
@@ -215,26 +304,124 @@ class SearchMessageManager:
             'timestamp': 'Thời Gian',
             'input_word_count': 'Số Từ Input',
             'output_word_count': 'Số Từ Output',
-            'processing_time': 'Thời Gian Xử Lý (giây)'
+            'processing_time': 'Thời Gian Xử Lý (giây)',
+            'username': 'Người hỏi'
         })
 
         st.markdown(f"**Kết quả:** `{len(filtered_df)}` bản ghi")
         st.dataframe(
             filtered_df_renamed[
-                ['Câu Hỏi', 'Câu Trả Lời', 'Thời Gian', 'Số Từ Input', 'Số Từ Output', 'Thời Gian Xử Lý (giây)']],
+                ['Câu Hỏi', 'Câu Trả Lời', 'Thời Gian', 'Số Từ Input', 'Số Từ Output', 'Thời Gian Xử Lý (giây)', 'Người hỏi']],
             height=300
         )
+
+        # Tokenize text and count word frequencies
+        def tokenize(text):
+            words = re.findall(r'\w+', text.lower())
+            return words
+
+        all_questions = ' '.join(filtered_df['question'].dropna())
+        all_answers = ' '.join(filtered_df['answer'].dropna())
+
+        question_words = tokenize(all_questions)
+        answer_words = tokenize(all_answers)
+
+        question_word_counts = Counter(question_words)
+        answer_word_counts = Counter(answer_words)
+
+        total_question_words = sum(question_word_counts.values())
+        total_answer_words = sum(answer_word_counts.values())
+
+        top_question_words = question_word_counts.most_common(10)
+        top_answer_words = answer_word_counts.most_common(10)
+
+        question_data = pd.DataFrame(top_question_words, columns=['Từ', 'Số Lần Xuất Hiện'])
+        question_data['Tần suất (%)'] = question_data['Số Lần Xuất Hiện'] / total_question_words * 100
+
+        answer_data = pd.DataFrame(top_answer_words, columns=['Từ', 'Số Lần Xuất Hiện'])
+        answer_data['Tần suất (%)'] = answer_data['Số Lần Xuất Hiện'] / total_answer_words * 100
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("### Từ hỏi nhiều nhất")
+            st.write(question_data)
+
+        with col2:
+            st.markdown("### Từ trả lời nhiều nhất")
+            st.write(answer_data)
 
 
 class SystemInfoManager:
     @classmethod
     def show(cls):
-        # st.markdown('<p class="medium-font">Thông Tin Hệ Thống</p>', unsafe_allow_html=True)
+        st.markdown("## Thông Tin Hệ Thống", unsafe_allow_html=True)
+
+        # Thông tin cơ bản
         col1, col2, col3 = st.columns(3)
         col1.info(f"**Vector Store:** Qdrant")
-        col3.info(f"**NoSQL Store:** MongoDB")
-        col2.info(f"**Chat Model:** {st.session_state.mode_chat}")
-        st.info(f"**Embedded:** {st.session_state.model_embed}")
+        col2.info(f"**NoSQL Store:** MongoDB")
+        col3.info(f"**Chat Model:** {st.session_state.mode_chat}")
+
+        col1, col2 = st.columns(2)
+        col1.info(f"**Embedded Model:** {st.session_state.model_embed}")
+        col2.info(f"**Current Database:** {st.session_state.current_data}")
+
+        # Thông tin chi tiết
+        st.markdown("### Chi tiết cấu hình")
+
+        # Thông tin hệ thống
+        system_info = {
+            "Hệ điều hành": platform.system(),
+            "Phiên bản": platform.version(),
+            "Kiến trúc": platform.machine(),
+            "Processor": platform.processor(),
+            "RAM Total": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
+            "RAM Available": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
+            "Disk Usage": f"{psutil.disk_usage('/').percent}%"
+        }
+
+        col1, col2 = st.columns(2)
+        for i, (key, value) in enumerate(system_info.items()):
+            if i % 2 == 0:
+                col1.info(f"**{key}:** {value}")
+            else:
+                col2.info(f"**{key}:** {value}")
+
+        # Thông tin cấu hình
+        st.markdown("### Cấu hình ứng dụng")
+        config_info = {
+            "MongoDB Database": st.session_state.mongo_database,
+            "Chat Collection": st.session_state.chat_collection,
+            "Login Collection": st.session_state.login_collection,
+            "Ban Collection": st.session_state.ban_collection,
+        }
+
+        col1, col2 = st.columns(2)
+        for i, (key, value) in enumerate(config_info.items()):
+            if i % 2 == 0:
+                col1.info(f"**{key}:** {value}")
+            else:
+                col2.info(f"**{key}:** {value}")
+
+        # Thông tin trạng thái
+        st.markdown("### Trạng thái hệ thống")
+        status_info = {
+            "IP Address": st.session_state.ip,
+            "Initialized": "Yes" if st.session_state.initialized else "No",
+            "Current Date": datetime.now().strftime("%Y-%m-%d"),
+            "Uptime": f"{(time.time() - psutil.boot_time()) / 60:.2f} minutes",
+            "CPU Usage": f"{psutil.cpu_percent()}%",
+            "Active Users": len(set(
+                msg['username'] for msg in st.session_state.mongodb.find_many(st.session_state.chat_collection, {})))
+        }
+
+        col1, col2 = st.columns(2)
+        for i, (key, value) in enumerate(status_info.items()):
+            if i % 2 == 0:
+                col1.info(f"**{key}:** {value}")
+            else:
+                col2.info(f"**{key}:** {value}")
 
 
 
