@@ -59,8 +59,8 @@ class Login:
 
     @staticmethod
     def login(mongo_db, account, login_history, ban_collection, username, password, ip):
-        if Login.check_banned_ip(mongo_db, ban_collection, ip):
-            st.error("Địa chỉ IP của bạn đã bị cấm. Vui lòng liên hệ quản trị viên.")
+        if Login.check_banned_ip(mongo_db, ban_collection, username):
+            st.error("Tài khoản của bạn đã bị cấm. Vui lòng liên hệ quản trị viên.")
             return
 
         user = mongo_db.find_one(account, {"username": username})
@@ -116,6 +116,6 @@ class Login:
         st.rerun()
 
     @staticmethod
-    def check_banned_ip(mongo_db, ban_collection, ip_address):
-        banned_ip = mongo_db.find_one(ban_collection, {"ip_address": ip_address})
+    def check_banned_ip(mongo_db, ban_collection, username):
+        banned_ip = mongo_db.find_one(ban_collection, {"username": username})
         return banned_ip is not None

@@ -131,55 +131,59 @@ class Manager:
         # IP with most requests
         st.html('<p class="medium-font">IP Gửi Nhiều Request Nhất</p>')
 
-        banned_ips = set(doc['ip'] for doc in cls._mongodb.find_many(cls._ban_collection, {}))
+        banned_usernames = set(doc['username'] for doc in cls._mongodb.find_many(cls._ban_collection, {}))
 
         if login_df is not None and not login_df.empty:
-            # Lọc các IP không bị cấm
-            non_banned_ips = login_df[~login_df['ip_address'].isin(banned_ips)]['ip_address']
-            ip_counts = Counter(non_banned_ips)
+            # Lọc các username không bị cấm
+            non_banned_usernames = login_df[~login_df['username'].isin(banned_usernames)]['username']
+            username_counts = Counter(non_banned_usernames)
 
-            # Chọn số lượng IP muốn hiển thị
-            num_ips = st.selectbox("Chọn số lượng IP muốn hiển thị", options=range(1, min(11, len(ip_counts) + 1)),
-                                   index=min(4, len(ip_counts) - 1))
+            # Chọn số lượng username muốn hiển thị
+            num_usernames = st.selectbox("Chọn số lượng username muốn hiển thị",
+                                         options=range(1, min(11, len(username_counts) + 1)),
+                                         index=min(4, len(username_counts) - 1))
 
-            # Lấy top IP
-            top_ips = ip_counts.most_common(num_ips)
+            # Lấy top username
+            top_usernames = username_counts.most_common(num_usernames)
 
-            # Hiển thị thông tin về top IP
-            for ip, count in top_ips:
+            # Hiển thị thông tin về top username
+            for username, count in top_usernames:
                 col1, col2, col3 = st.columns([2, 1, 1])
-                col1.write(f":red[IP: {ip} (Bạn)]" if ip == cls._ip else f"IP: {ip}")
+                col1.write(
+                    f":red[Username: {username} (Bạn)]" if username == cls._username else f"Username: {username}")
                 col2.write(f"Số lượng: {count}")
-                if ip != cls._ip and ip not in banned_ips:
-                    if col3.button(f"Ban {ip}", key=f"ban_{ip}"):
-                        cls._mongodb.insert_one(cls._ban_collection, {"ip": ip, "banned_at": datetime.now()})
-                        st.success(f"Đã ban IP {ip}")
+                if username != cls._username and username not in banned_usernames:
+                    if col3.button(f"Ban {username}", key=f"ban_{username}"):
+                        cls._mongodb.insert_one(cls._ban_collection,
+                                                {"username": username, "banned_at": datetime.now()})
+                        st.success(f"Đã ban username {username}")
                         st.rerun()
 
-            # Hiển thị biểu đồ cột cho top IP
-            ip_df = pd.DataFrame(top_ips, columns=['IP', 'Số lượng truy cập'])
-            fig_ip = px.bar(ip_df, x='IP', y='Số lượng truy cập', title=f'Top {num_ips} IP có nhiều truy cập nhất')
-            st.plotly_chart(fig_ip, use_container_width=True)
+            # Hiển thị biểu đồ cột cho top username
+            username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
+            fig_username = px.bar(username_df, x='Username', y='Số lượng truy cập',
+                                  title=f'Top {num_usernames} username có nhiều truy cập nhất')
+            st.plotly_chart(fig_username, use_container_width=True)
 
-            # Danh sách IP đã bị cấm
-            st.markdown('<p class="medium-font">Danh Sách IP Đã Bị Cấm</p>', unsafe_allow_html=True)
+            # Danh sách username đã bị cấm
+            st.markdown('<p class="medium-font">Danh Sách Username Đã Bị Cấm</p>', unsafe_allow_html=True)
 
-            banned_ips_data = list(cls._mongodb.find_many(cls._ban_collection, {}))
-            if banned_ips_data:
-                banned_df = pd.DataFrame(banned_ips_data)
+            banned_usernames_data = list(cls._mongodb.find_many(cls._ban_collection, {}))
+            if banned_usernames_data:
+                banned_df = pd.DataFrame(banned_usernames_data)
                 banned_df['banned_at'] = pd.to_datetime(banned_df['banned_at'])
                 banned_df = banned_df.sort_values('banned_at', ascending=False)
 
                 for _, row in banned_df.iterrows():
                     col1, col2, col3 = st.columns([2, 2, 1])
-                    col1.write(f"IP: {row['ip']}")
+                    col1.write(f"Username: {row['username']}")
                     col2.write(f"Bị cấm lúc: {row['banned_at'].strftime('%Y-%m-%d %H:%M:%S')}")
-                    if col3.button(f"Gỡ ban", key=f"unban_{row['ip']}"):
-                        cls._mongodb.delete_one(cls._ban_collection, {"ip": row['ip']})
-                        st.success(f"Đã gỡ cấm IP {row['ip']}")
+                    if col3.button(f"Gỡ ban", key=f"unban_{row['username']}"):
+                        cls._mongodb.delete_one(cls._ban_collection, {"username": row['username']})
+                        st.success(f"Đã gỡ cấm username {row['username']}")
                         st.rerun()
             else:
-                st.write("Không có IP nào bị cấm.")
+                st.write("Không có username nào bị cấm.")
         else:
             st.write("Không có dữ liệu đăng nhập.")
 
