@@ -234,7 +234,7 @@ class SystemInfoManager:
         col1.info(f"**Vector Store:** Qdrant")
         col3.info(f"**NoSQL Store:** MongoDB")
         col2.info(f"**Chat Model:** {st.session_state.mode_chat}")
-        st.info(f"**Embedded Model:** {st.session_state.model_embed}")
+        st.info(f"**Embedded:** {st.session_state.model_embed}")
 
 
 
