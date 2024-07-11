@@ -5,16 +5,13 @@ from datetime import datetime, timedelta
 import plotly.express as px
 from collections import Counter
 
-class Manager:
-
-
+class General:
     @staticmethod
     def calculate_metrics(df):
         if df.empty:
             return {metric: 0 for metric in
                     ['total_questions', 'total_input_words', 'total_output_words', 'avg_processing_time',
                      'max_processing_time']}
-
         return {
             'total_questions': len(df),
             'total_input_words': df['input_word_count'].sum(),
@@ -38,47 +35,28 @@ class Manager:
 
     @classmethod
     def show(cls):
-
-
         if "data" not in st.session_state:
             st.session_state.data = list(st.session_state.mongodb.find_many(
                 st.session_state.chat_collection, {}
             ))
 
-        if "login_data" not in st.session_state:
-            st.session_state.login_data = list(st.session_state.mongodb.find_many(
-                st.session_state.login_collection, {}
-            ))
-
         data = st.session_state.data
-        login_data = st.session_state.login_data
-
-        st.html('<p class="big-font">QUẢN LÝ HỆ THỐNG</p>')
-
         df = pd.DataFrame(data)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        login_df = pd.DataFrame(login_data)
-        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
-
-        # Summary statistics
-        st.html('<p class="medium-font">Thống Kê Tổng Quan</p>')
+        # st.html('<p class="medium-font">Thống Kê Tổng Quan</p>')
         col1, col2, col3, col4, col5 = st.columns(5)
 
-        # Get today's date and yesterday's date
         today = datetime.now().date()
         yesterday = today - timedelta(days=1)
 
-        # Filter dataframe for today and yesterday
         df_today = df[df['timestamp'].dt.date == today]
         df_yesterday = df[df['timestamp'].dt.date == yesterday]
 
-        # Calculate metrics for all data, today, and yesterday
         metrics_all = cls.calculate_metrics(df)
         metrics_today = cls.calculate_metrics(df_today)
         metrics_yesterday = cls.calculate_metrics(df_yesterday)
 
-        # Display metrics with percentage change
         col1.metric(
             label="Tổng Số Câu Hỏi",
             value=f"{metrics_all['total_questions']:,}",
@@ -114,53 +92,73 @@ class Manager:
                 cls.calc_percent_change(metrics_today['max_processing_time'], metrics_yesterday['max_processing_time']))
         )
 
-        # Visualizations
-        st.html('<p class="medium-font">Biểu Đồ Thống Kê</p>')
 
-        # Line chart for processing times
+class TimeProcessVisualize:
+    @classmethod
+    def show(cls):
+        if "data" not in st.session_state:
+            st.session_state.data = list(st.session_state.mongodb.find_many(
+                st.session_state.chat_collection, {}
+            ))
+
+        data = st.session_state.data
+        df = pd.DataFrame(data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        # st.html('<p class="medium-font">Biểu Đồ Thống Kê</p>')
+
         fig_line = px.line(df, x='timestamp', y='processing_time', title='Thời Gian Xử Lý Theo Thời Gian')
         fig_line.update_layout(xaxis_title="Thời Gian", yaxis_title="Thời Gian Xử Lý (giây)")
         st.plotly_chart(fig_line, use_container_width=True)
 
-        # IP with most requests
-        st.html('<p class="medium-font">IP Gửi Nhiều Request Nhất</p>')
+
+class AccountManager:
+    @classmethod
+    def show(cls):
+        if "login_data" not in st.session_state:
+            st.session_state.login_data = list(st.session_state.mongodb.find_many(
+                st.session_state.login_collection, {}
+            ))
+
+        login_data = st.session_state.login_data
+        login_df = pd.DataFrame(login_data)
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+
+        # st.html('<p class="medium-font">IP Gửi Nhiều Request Nhất</p>')
 
         banned_usernames = set(doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
-
+        st.markdown('<h4>QUẢN LÝ TÀI KHOẢN</h4>', unsafe_allow_html=True)
         if login_df is not None and not login_df.empty:
-            # Lọc các username không bị cấm
             non_banned_usernames = login_df[~login_df['username'].isin(banned_usernames)]['username']
             username_counts = Counter(non_banned_usernames)
 
-            # Chọn số lượng username muốn hiển thị
             num_usernames = st.selectbox("Chọn số lượng username muốn hiển thị",
                                          options=range(1, min(11, len(username_counts) + 1)),
                                          index=min(4, len(username_counts) - 1))
 
-            # Lấy top username
             top_usernames = username_counts.most_common(num_usernames)
 
-            # Hiển thị thông tin về top username
             for username, count in top_usernames:
                 col1, col2, col3 = st.columns([2, 1, 1])
+                # col1.write(
+                #     f":red[Username: {username} (Bạn)]" if username == st.session_state.username else f"Username: {username}")
+                # col2.write(f"Số lượng: {count}")
                 col1.write(
-                    f":red[Username: {username} (Bạn)]" if username == st.session_state.username else f"Username: {username}")
-                col2.write(f"Số lượng: {count}")
+                    "" if username == st.session_state.username else f"Username: {username}")
+                col2.write("" if username == st.session_state.username else f"Số lượng: {count}")
                 if username != st.session_state.username and username not in banned_usernames:
-                    if col3.button(f"Ban {username}", key=f"ban_{username}"):
+                    if col3.button("Chặn", key=f"ban_{username}"):
                         st.session_state.mongodb.insert_one(st.session_state.ban_collection,
                                                             {"username": username, "banned_at": datetime.now()})
-                        st.success(f"Đã ban username {username}")
-                        st.experimental_rerun()
+                        st.success(f"Đã chặn username {username}")
+                        st.rerun()
 
-            # Hiển thị biểu đồ cột cho top username
-            username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
-            fig_username = px.bar(username_df, x='Username', y='Số lượng truy cập',
-                                  title=f'Top {num_usernames} username có nhiều truy cập nhất')
-            st.plotly_chart(fig_username, use_container_width=True)
+            # username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
+            # fig_username = px.bar(username_df, x='Username', y='Số lượng truy cập',
+            #                       title=f'Top {num_usernames} username có nhiều truy cập nhất')
+            # st.plotly_chart(fig_username, use_container_width=True)
 
-            # Danh sách username đã bị cấm
-            st.markdown('<p class="medium-font">Danh Sách Username Đã Bị Cấm</p>', unsafe_allow_html=True)
+            st.markdown('<h4>DANH SÁCH CHẶN</h4>', unsafe_allow_html=True)
 
             banned_usernames_data = list(st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
             if banned_usernames_data:
@@ -172,7 +170,7 @@ class Manager:
                     col1, col2, col3 = st.columns([2, 2, 1])
                     col1.write(f"Username: {row['username']}")
                     col2.write(f"Bị cấm lúc: {row['banned_at'].strftime('%Y-%m-%d %H:%M:%S')}")
-                    if col3.button(f"Gỡ ban", key=f"unban_{row['username']}"):
+                    if col3.button(f"Gỡ chặn", key=f"unban_{row['username']}"):
                         st.session_state.mongodb.delete_one(st.session_state.ban_collection, {"username": row['username']})
                         st.success(f"Đã gỡ cấm username {row['username']}")
                         st.experimental_rerun()
@@ -181,17 +179,30 @@ class Manager:
         else:
             st.write("Không có dữ liệu đăng nhập.")
 
-        st.html('<p class="medium-font">Tìm Kiếm và Lọc</p>')
+
+class SearchMessageManager:
+    @classmethod
+    def show(cls):
+        if "data" not in st.session_state:
+            st.session_state.data = list(st.session_state.mongodb.find_many(
+                st.session_state.chat_collection, {}
+            ))
+
+        data = st.session_state.data
+        df = pd.DataFrame(data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        # st.html('<p class="medium-font">Tìm Kiếm và Lọc</p>')
         col1, col2 = st.columns([2, 1])
         with col1:
-            search_term = st.text_input("Tìm kiếm câu hỏi")
+            search_term = st.text_input("Tìm kiếm")
         with col2:
             date_range = st.date_input("Chọn khoảng thời gian", [datetime.now() - timedelta(days=7), datetime.now()])
 
         if len(date_range) == 2:
             start_date, end_date = date_range
             filtered_df = df[
-                (df['question'].str.contains(search_term, case=False, na=False)) &
+                (df['question'].str.contains(search_term, case=False, na=False) | df['answer'].str.contains(search_term, case=False, na=False)) &
                 (df['timestamp'].dt.date >= start_date) &
                 (df['timestamp'].dt.date <= end_date)
                 ]
@@ -213,10 +224,17 @@ class Manager:
                 ['Câu Hỏi', 'Câu Trả Lời', 'Thời Gian', 'Số Từ Input', 'Số Từ Output', 'Thời Gian Xử Lý (giây)']],
             height=300
         )
-        # Database and chatbot information
-        st.markdown('<p class="medium-font">Thông Tin Hệ Thống</p>', unsafe_allow_html=True)
+
+
+class SystemInfoManager:
+    @classmethod
+    def show(cls):
+        # st.markdown('<p class="medium-font">Thông Tin Hệ Thống</p>', unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
         col1.info(f"**Vector Store:** Qdrant")
         col3.info(f"**NoSQL Store:** MongoDB")
         col2.info(f"**Chat Model:** {st.session_state.mode_chat}")
         st.info(f"**Embedded Model:** {st.session_state.model_embed}")
+
+
+

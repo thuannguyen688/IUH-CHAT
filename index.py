@@ -1,7 +1,7 @@
 import streamlit as st
 from config import QDRANT_CONFIG, MONGODB_CONFIG, MODEL_CONFIG
 from database import QdrantManager, MongoManager
-from ui import Collections, Manager, Upload, Chat, Login, Home
+from ui import *
 from models import Model
 from style import custom_css
 from data import Data
@@ -61,7 +61,18 @@ class Main:
             case "Trang chủ":
                 Home.show()
             case "Quản lý":
-                Manager.show()
+                    st.html("<h2 class='centered-title'>QUẢN LÝ HỆ THỐNG</h2>")
+                    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Tổng quan", "Biểu đồ", "Tài khoản", "Tin nhắn", "Thông tin"])
+                    with tab1:
+                        General.show()
+                    with tab2:
+                        TimeProcessVisualize.show()
+                    with tab3:
+                        AccountManager.show()
+                    with tab4:
+                        SearchMessageManager.show()
+                    with tab5:
+                        SystemInfoManager.show()
             case "Upload PDF":
                 Upload.show()
             case "Xem bộ sưu tập":
