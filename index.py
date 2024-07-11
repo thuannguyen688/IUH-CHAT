@@ -6,7 +6,7 @@ from models import Model
 from style import custom_css
 from data import Data
 import socket
-
+import requests
 
 class Main:
     _initialized = False
@@ -18,6 +18,18 @@ class Main:
     _retriever = None
     _ip = None
     _embedding_model = None
+
+    @staticmethod
+    def client_ip():
+        url = 'https://api.ipify.org?format=json'
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            ip_data = response.json()
+            return ip_data.get('ip')
+        except requests.RequestException as e:
+            st.error(f"Error fetching IP: {e}")
+            return None
 
     @classmethod
     # @st.cache_resource
@@ -65,7 +77,7 @@ class Main:
             Login.show(cls._mongo_db, MONGODB_CONFIG["ACCOUNT"], MONGODB_CONFIG["LOGIN_HISTORY"], MONGODB_CONFIG["BAN_COLLECTION"], cls._ip)
         else:
             cls.build_navigation()
-
+        st.write(cls.client_ip())
     @classmethod
     def build_navigation(cls):
         cls.initialize()
