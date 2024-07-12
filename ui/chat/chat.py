@@ -17,7 +17,7 @@ class Chat:
             Chat.save_chat_result(question, result, processing_time)
             return result, processing_time, docs
         except:
-            return "Hệ thống vừa cập nhật vui lòng đăng nhập lại", "", ""
+            return "Hệ thống vừa cập nhật vui lòng đăng nhập lại", 0, ""
 
     @staticmethod
     def save_chat_result(question, answer, processing_time):
