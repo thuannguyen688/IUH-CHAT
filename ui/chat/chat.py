@@ -9,12 +9,15 @@ class Chat:
 
     @staticmethod
     def get_answer(question):
-        start = time.time()
-        docs = st.session_state.qdrant_db.get_data_from_store(st.session_state.retriever, question)
-        result = st.session_state.model.chat(docs, question)
-        processing_time = time.time() - start
-        Chat.save_chat_result(question, result, processing_time)
-        return result, processing_time, docs
+        try:
+            start = time.time()
+            docs = st.session_state.qdrant_db.get_data_from_store(st.session_state.retriever, question)
+            result = st.session_state.model.chat(docs, question)
+            processing_time = time.time() - start
+            Chat.save_chat_result(question, result, processing_time)
+            return result, processing_time, docs
+        except:
+            return "Hệ thống vừa cập nhật vui lòng đăng nhập lại", "", ""
 
     @staticmethod
     def save_chat_result(question, answer, processing_time):
