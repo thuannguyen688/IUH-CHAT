@@ -46,7 +46,6 @@ class Chat:
             message_placeholder = st.empty()
             with st.spinner('Đang xử lý câu hỏi...'):
                 answer, processing_time, docs = Chat.get_answer(prompt)
-            st.caption(docs)
             message_placeholder.markdown(answer)
             st.caption(f"Xử lý hoàn tất trong {processing_time:.2f} giây!")
 
