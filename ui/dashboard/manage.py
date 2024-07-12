@@ -28,9 +28,10 @@ class General:
 
     @staticmethod
     def calc_percent_change(today_value, yesterday_value):
-        if yesterday_value == 0:
-            return None if today_value == 0 else 100.0
-        change = ((today_value - yesterday_value) / yesterday_value) * 100
+        total_value = today_value + yesterday_value
+        if total_value == 0:
+            return 0.0  # Nếu tổng giá trị là 0, thay đổi là 0%
+        change = ((today_value - yesterday_value) / total_value) * 100
         return round(change, 1)
 
     @staticmethod
@@ -52,11 +53,8 @@ class General:
             ))
 
         data = st.session_state.data
-        login_data = st.session_state.login_data
         df = pd.DataFrame(data)
-        login_df = pd.DataFrame(login_data)
-        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(cls._vietnam_tz)
-        login_df['timestamp'] = pd.to_datetime(login_df['timestamp']).dt.tz_convert(cls._vietnam_tz)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -114,7 +112,7 @@ class General:
 
         # Thống kê người dùng
         active_users_today = df_today['username'].nunique()
-        active_users_week = df[df['timestamp'] > (datetime.now(cls._vietnam_tz) - timedelta(days=7))]['username'].nunique()
+        active_users_week = df[df['timestamp'].dt.tz_localize('UTC').dt.tz_convert(cls._vietnam_tz) > (datetime.now(cls._vietnam_tz) - timedelta(days=7))]['username'].nunique()
         avg_question_length = df['input_word_count'].mean()
         avg_answer_length = df['output_word_count'].mean()
 
@@ -144,7 +142,7 @@ class TimeProcessVisualize:
 
         data = st.session_state.data
         df = pd.DataFrame(data)
-        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(cls._vietnam_tz)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
         df['date'] = df['timestamp'].dt.date
 
         # st.html('<p class="medium-font">Biểu Đồ Thống Kê</p>')
@@ -192,9 +190,11 @@ class AccountManager:
 
         login_data = st.session_state.login_data
         login_df = pd.DataFrame(login_data)
-        login_df['timestamp'] = pd.to_datetime(login_df['timestamp']).dt.tz_convert(cls._vietnam_tz)
+        data = st.session_state.data
+        df = pd.DataFrame(data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
         banned_usernames = set(
-            doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
+        doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
 
         total_accounts = len(login_df['username'].unique())
         active_accounts = total_accounts - len(banned_usernames)
@@ -273,6 +273,7 @@ class AccountManager:
 
 
 class SearchMessageManager:
+    _vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     @classmethod
     def show(cls):
         if "data" not in st.session_state:
@@ -355,6 +356,7 @@ class SearchMessageManager:
 
 
 class SystemInfoManager:
+    _vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     @classmethod
     def show(cls):
         st.markdown("## Thông Tin Hệ Thống", unsafe_allow_html=True)
