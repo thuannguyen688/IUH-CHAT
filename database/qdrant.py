@@ -52,8 +52,8 @@ class QdrantManager:
         )
 
     @staticmethod
-    def get_retriever(store, search_type: str = 'similarity', k: int = 3):
-        return store.as_retriever(search_type=search_type, search_kwargs={'k': k})
+    def get_retriever(store, search_type: str = 'similarity_score_threshold', k: int = 3):
+        return store.as_retriever(search_type=search_type, search_kwargs={'k': k, 'score_threshold': 0.7})
 
     @classmethod
     def get_collections(cls) -> List[Dict]:

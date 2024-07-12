@@ -9,7 +9,9 @@ import psutil
 import platform
 import time
 import re
+import pytz
 class General:
+    _vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     @staticmethod
     def calculate_metrics(df):
         if df.empty:
@@ -53,16 +55,17 @@ class General:
         login_data = st.session_state.login_data
         df = pd.DataFrame(data)
         login_df = pd.DataFrame(login_data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(cls._vietnam_tz)
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp']).dt.tz_convert(cls._vietnam_tz)
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
-        today = datetime.now().date()
+        today = datetime.now(cls._vietnam_tz).date()
         yesterday = today - timedelta(days=1)
 
         df_today = df[df['timestamp'].dt.date == today]
         df_yesterday = df[df['timestamp'].dt.date == yesterday]
+
 
         metrics_all = cls.calculate_metrics(df)
         metrics_today = cls.calculate_metrics(df_today)
@@ -111,7 +114,7 @@ class General:
 
         # Thống kê người dùng
         active_users_today = df_today['username'].nunique()
-        active_users_week = df[df['timestamp'] > (datetime.now() - timedelta(days=7))]['username'].nunique()
+        active_users_week = df[df['timestamp'] > (datetime.now(cls._vietnam_tz) - timedelta(days=7))]['username'].nunique()
         avg_question_length = df['input_word_count'].mean()
         avg_answer_length = df['output_word_count'].mean()
 
@@ -131,6 +134,7 @@ class General:
 
 
 class TimeProcessVisualize:
+    _vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     @classmethod
     def show(cls):
         if "data" not in st.session_state:
@@ -140,17 +144,15 @@ class TimeProcessVisualize:
 
         data = st.session_state.data
         df = pd.DataFrame(data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(cls._vietnam_tz)
+        df['date'] = df['timestamp'].dt.date
 
         # st.html('<p class="medium-font">Biểu Đồ Thống Kê</p>')
 
         fig_line = px.line(df, x='timestamp', y='processing_time', title='Thời Gian Xử Lý Theo Thời Gian')
         fig_line.update_layout(xaxis_title="Thời Gian", yaxis_title="Thời Gian Xử Lý (giây)")
         st.plotly_chart(fig_line, use_container_width=True)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        # Group the data by date
-        df['date'] = df['timestamp'].dt.date
         df_daily = df.groupby('date').agg({
             'processing_time': ['mean', 'max']
         }).reset_index()
@@ -179,6 +181,7 @@ class TimeProcessVisualize:
 
 
 class AccountManager:
+    _vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     @classmethod
     def show(cls):
 
@@ -189,7 +192,7 @@ class AccountManager:
 
         login_data = st.session_state.login_data
         login_df = pd.DataFrame(login_data)
-        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'])
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp']).dt.tz_convert(cls._vietnam_tz)
         banned_usernames = set(
             doc['username'] for doc in st.session_state.mongodb.find_many(st.session_state.ban_collection, {}))
 
@@ -236,7 +239,7 @@ class AccountManager:
                 else:
                     if col3.button("Chặn", key=f"ban_{username}"):
                         st.session_state.mongodb.insert_one(st.session_state.ban_collection,
-                                                            {"username": username, "banned_at": datetime.now()})
+                                                            {"username": username, "banned_at": datetime.now(cls._vietnam_tz)})
                         st.success(f"Đã chặn username {username}")
                         st.rerun()
             # username_df = pd.DataFrame(top_usernames, columns=['Username', 'Số lượng truy cập'])
@@ -281,12 +284,11 @@ class SearchMessageManager:
         df = pd.DataFrame(data)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        # st.html('<p class="medium-font">Tìm Kiếm và Lọc</p>')
         col1, col2 = st.columns([2, 1])
         with col1:
             search_term = st.text_input("Tìm kiếm")
         with col2:
-            date_range = st.date_input("Chọn khoảng thời gian", [datetime.now() - timedelta(days=7), datetime.now()])
+            date_range = st.date_input("Chọn khoảng thời gian", [datetime.now(cls._vietnam_tz) - timedelta(days=7), datetime.now(cls._vietnam_tz)])
 
         if len(date_range) == 2:
             start_date, end_date = date_range
@@ -409,7 +411,7 @@ class SystemInfoManager:
         status_info = {
             "IP Address": st.session_state.ip,
             "Initialized": "Yes" if st.session_state.initialized else "No",
-            "Current Date": datetime.now().strftime("%Y-%m-%d"),
+            "Current Date": datetime.now(cls._vietnam_tz).strftime("%Y-%m-%d"),
             "Uptime": f"{(time.time() - psutil.boot_time()) / 60:.2f} minutes",
             "CPU Usage": f"{psutil.cpu_percent()}%",
             "Active Users": len(set(

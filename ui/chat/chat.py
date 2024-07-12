@@ -3,7 +3,7 @@ import os
 import time
 import sys
 from datetime import datetime
-
+import pytz
 
 class Chat:
 
@@ -18,13 +18,14 @@ class Chat:
 
     @staticmethod
     def save_chat_result(question, answer, processing_time):
+        vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
         chat_record = {
             "question": question,
             "answer": answer,
             "processing_time": processing_time,
             "input_word_count": len(question.split()),
             "output_word_count": len(answer.split()),
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now(vietnam_tz).strftime("%Y-%m-%d %H:%M:%S"),
             "username": st.session_state.username,
         }
         st.session_state.mongodb.insert_one(st.session_state.chat_collection, chat_record)
@@ -45,6 +46,7 @@ class Chat:
             message_placeholder = st.empty()
             with st.spinner('Đang xử lý câu hỏi...'):
                 answer, processing_time, docs = Chat.get_answer(prompt)
+            st.caption(docs)
             message_placeholder.markdown(answer)
             st.caption(f"Xử lý hoàn tất trong {processing_time:.2f} giây!")
 

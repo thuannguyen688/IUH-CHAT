@@ -6,7 +6,7 @@ class Data:
     def __init__(self):
         pass
     @staticmethod
-    def process_pdf(file_path, chunk_size: int = 1600, chunk_overlap: int = 450):
+    def process_pdf(file_path, chunk_size: int = 1000, chunk_overlap: int = 400):
         try:
             data = PyPDFLoader(file_path)
             data = data.load()
