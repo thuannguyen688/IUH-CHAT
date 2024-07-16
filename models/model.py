@@ -21,7 +21,6 @@ class Model:
         5. Đối với các câu hỏi về thời hạn hoặc quy định cụ thể, luôn nhắc nhở người hỏi kiểm tra lại thông tin trên website chính thức là: https://tuyensinh.iuh.edu.vn/ hoặc liên hệ trực tiếp với trường bằng điện thoại. Với chi nhánh Hồ Chí Minh qua các số: (028) 3895 5858; (028) 3985 1932; (028) 3985 1917. Chi nhánh Quãng Ngãi: (0255) 625 0075; (0255) 222 2135; 0916 222 135. để có thông tin chính xác và cập nhật nhất.
         6. Sử dụng ngôn ngữ thân thiện, dễ hiểu và phù hợp với đối tượng là học sinh, phụ huynh quan tâm đến tuyển sinh.
         7. Nếu câu hỏi không rõ ràng, hãy yêu cầu người hỏi cung cấp thêm thông tin để có thể trả lời chính xác hơn.
-        8. Nếu được hỏi về ngành có được trường đào tạo không thì hãy dự trên kết quả từ cơ sở dữ liệu nếu có hãy trả lời là có và các thông tin liên quan đến nó
         Ngữ cảnh: {context}
         Câu hỏi: {question}
         """)

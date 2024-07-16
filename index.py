@@ -7,15 +7,11 @@ from style import custom_css
 import socket
 import os
 
-os.environ["LANGCHAIN_TRACING_V2"]="true"
-os.environ["LANGCHAIN_ENDPOINT"]= LANGCHAIN["LANGCHAIN_ENDPOINT"]
-os.environ["LANGCHAIN_API_KEY"]= LANGCHAIN["LANGCHAIN_API_KEY"]
-os.environ["LANGCHAIN_PROJECT"]= LANGCHAIN["LANGCHAIN_PROJECT"]
-
 class Main:
     @staticmethod
     def initialize():
         if "initialized" not in st.session_state:
+            os.environ.update({str(k): str(v) for k, v in LANGCHAIN.items()})
             st.session_state.chat_collection = MONGODB_CONFIG["CHAT_HISTORY"]
             st.session_state.login_collection =  MONGODB_CONFIG["LOGIN_HISTORY"]
             st.session_state.ban_collection = MONGODB_CONFIG["BAN_COLLECTION"]
