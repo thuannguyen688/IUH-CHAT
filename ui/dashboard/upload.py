@@ -157,7 +157,7 @@ class Upload:
             loader = WebBaseLoader(url)
             loader.requests_kwargs = {'verify': False}
             html_content = loader.scrape('html.parser')
-            for element in html_content(['script', 'style', 'meta', 'link', 'comment']):
+            for element in html_content(['script', 'style', 'meta', 'link', 'comment', 'a']):
                 element.decompose()
 
             text = html_content.get_text(separator='\n', strip=True)
