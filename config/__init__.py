@@ -18,7 +18,15 @@ MONGODB_CONFIG = {
 MODEL_CONFIG = {
     "EMBEDDED": st.secrets["MODEL"]["EMBEDED"],
     "CHAT": st.secrets["MODEL"]["CHAT"],
-    "API_KEY": st.secrets["MODEL"]["API_KEY"]
+    "API_KEY": st.secrets["MODEL"]["API_KEY"],
+    "HUGGINGFACE": st.secrets["MODEL"]["HUGGINGFACE"]
 }
 
-__all__ = ["QDRANT_CONFIG", "MONGODB_CONFIG", "MODEL_CONFIG"]
+LANGCHAIN = {
+    "LANGCHAIN_ENDPOINT" : st.secrets["LANGCHAIN"]["LANGCHAIN_ENDPOINT"],
+    "LANGCHAIN_API_KEY" : st.secrets["LANGCHAIN"]["LANGCHAIN_API_KEY"],
+    "LANGCHAIN_PROJECT" : st.secrets["LANGCHAIN"]["LANGCHAIN_PROJECT"]
+}
+
+
+__all__ = ["QDRANT_CONFIG", "MONGODB_CONFIG", "MODEL_CONFIG", "LANGCHAIN"]

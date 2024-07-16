@@ -1,11 +1,16 @@
 import streamlit as st
-from config import QDRANT_CONFIG, MONGODB_CONFIG, MODEL_CONFIG
+from config import QDRANT_CONFIG, MONGODB_CONFIG, MODEL_CONFIG, LANGCHAIN
 from database import QdrantManager, MongoManager
 from ui import *
 from models import Model
 from style import custom_css
-from data import Data
 import socket
+import os
+
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_ENDPOINT"]= LANGCHAIN["LANGCHAIN_ENDPOINT"]
+os.environ["LANGCHAIN_API_KEY"]= LANGCHAIN["LANGCHAIN_API_KEY"]
+os.environ["LANGCHAIN_PROJECT"]= LANGCHAIN["LANGCHAIN_PROJECT"]
 
 class Main:
     @staticmethod
@@ -27,16 +32,13 @@ class Main:
             st.session_state.qdrant_db = QdrantManager.get_instance(st.session_state.qdrant_url, st.session_state.qdrant_api_key)
             if "messages" not in st.session_state:
                 st.session_state.messages = []
-            st.session_state.model = Model(MODEL_CONFIG["API_KEY"])
+            st.session_state.model = Model(MODEL_CONFIG["API_KEY"], MODEL_CONFIG["HUGGINGFACE"], st.session_state.model_embed)
             st.session_state.embedding_model = st.session_state.model.get_embedding_model()
             st.session_state.current_data = st.session_state.mongodb.find_one(st.session_state.chat_db, {"key": "DATABASE_CONFIG"})["selected_db"]
             st.session_state.store_qdrant = st.session_state.qdrant_db.get_store(st.session_state.current_data, st.session_state.embedding_model)
             st.session_state.retriever = st.session_state.qdrant_db.get_retriever(st.session_state.store_qdrant)
             st.session_state.ip = socket.gethostbyname(socket.gethostname())
             st.session_state.initialized = True
-            st.session_state.Data = Data
-
-
 
 
     @staticmethod
@@ -60,7 +62,7 @@ class Main:
     @staticmethod
     def build_navigation():
         Main.initialize()
-        menu_items = ["Trang chủ", "Quản lý", "Upload PDF", "Xem bộ sưu tập", "Chatbot"] if st.session_state.user_role == "admin" else ["Trang chủ", "Chatbot"]
+        menu_items = ["Trang chủ", "Quản lý", "Upload", "Xem bộ sưu tập", "Chatbot"] if st.session_state.user_role == "admin" else ["Trang chủ", "Chatbot"]
         page = Main.create_sidebar_menu(menu_items)
 
         match page:
@@ -79,7 +81,7 @@ class Main:
                         SearchMessageManager.show()
                     with tab5:
                         SystemInfoManager.show()
-            case "Upload PDF":
+            case "Upload":
                 Upload.show()
             case "Xem bộ sưu tập":
                 Collections.show()

@@ -1,10 +1,6 @@
 import streamlit as st
 
 class Home:
-    @classmethod
-    def __new__(cls):
-        pass
-
     @staticmethod
     def show():
         Home.setup_page()

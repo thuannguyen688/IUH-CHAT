@@ -1,23 +1,33 @@
 import streamlit as st
 import os
 import time
-import sys
 from datetime import datetime
 import pytz
 
 class Chat:
 
-    @staticmethod
-    def get_answer(question):
+    @classmethod
+    def get_answer(cls, question):
         try:
             start = time.time()
             docs = st.session_state.qdrant_db.get_data_from_store(st.session_state.retriever, question)
+            # chat_history = cls.format_chat_history()
+            # result = st.session_state.model.chat(docs, question, chat_history)
             result = st.session_state.model.chat(docs, question)
             processing_time = time.time() - start
-            Chat.save_chat_result(question, result, processing_time)
+            cls.save_chat_result(question, result, processing_time)
             return result, processing_time, docs
-        except:
+        except Exception as e:
+            st.write(e)
             return "Hệ thống vừa cập nhật vui lòng đăng nhập lại", 0, ""
+
+    # @staticmethod
+    # def format_chat_history():
+    #     history = []
+    #     for message in st.session_state.messages[-5:]:  # Get last 5 messages
+    #         role = "Human" if message["role"] == "user" else "Assistant"
+    #         history.append(f"{role}: {message['content']}")
+    #     return "\n".join(history)
 
     @staticmethod
     def save_chat_result(question, answer, processing_time):
@@ -39,8 +49,8 @@ class Chat:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-    @staticmethod
-    def process_user_input(prompt):
+    @classmethod
+    def process_user_input(cls, prompt):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -48,19 +58,19 @@ class Chat:
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             with st.spinner('Đang xử lý câu hỏi...'):
-                answer, processing_time, docs = Chat.get_answer(prompt)
+                answer, processing_time, docs = cls.get_answer(prompt)
             message_placeholder.markdown(answer)
             st.caption(f"Xử lý hoàn tất trong {processing_time:.2f} giây!")
 
         st.session_state.messages.append({"role": "assistant", "content": answer, "processing_time": processing_time})
 
-    @staticmethod
-    def normal():
+    @classmethod
+    def normal(cls):
         st.html("<h1 class='centered-title'>HỆ THỐNG TRUY XUẤT DỮ LIỆU</h1>")
-        Chat.display_chat_history()
+        cls.display_chat_history()
 
         if prompt := st.chat_input("Nhập câu hỏi của bạn"):
-            Chat.process_user_input(prompt)
+            cls.process_user_input(prompt)
 
     @staticmethod
     def maintenance():
@@ -73,9 +83,9 @@ class Chat:
         Vui lòng quay lại sau. Cảm ơn sự kiên nhẫn của bạn!
         """)
 
-    @staticmethod
-    def show():
+    @classmethod
+    def show(cls):
         if st.session_state.current_data == "" or st.session_state.current_data is None:
-            Chat.maintenance()
+            cls.maintenance()
         else:
-            Chat.normal()
+            cls.normal()
