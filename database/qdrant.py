@@ -65,13 +65,14 @@ class QdrantManager:
 
         for collection in collections.collections:
             collection_info = cls._client.get_collection(collection.name)
-            vector_config = collection_info.config.params.vectors
+            vector_config = collection_info.config.params
             points_count = cls._client.count(collection_name=collection.name).count
+
 
             detailed_collections.append({
                 'name': collection.name,
-                'vector_size': vector_config.size,
-                'distance_metric': vector_config.distance,
+                'vector_size': getattr(vector_config.vectors, 'size', None),  # Using getattr for safety
+                'distance_metric': getattr(vector_config.vectors, 'distance', None),  # Adjusted this commented line
                 'points_count': points_count
             })
 
