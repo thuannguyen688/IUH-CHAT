@@ -4,7 +4,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 from typing import List, Dict, Optional
-
+from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain_cohere import CohereRerank
 class QdrantManager:
     _instance = None
     _client = None
@@ -52,8 +53,14 @@ class QdrantManager:
         )
 
     @staticmethod
-    def get_retriever(store, search_type: str = 'similarity_score_threshold', k: int = 3):
-        return store.as_retriever(search_type=search_type, search_kwargs={'k': k, 'score_threshold': 0.7})
+    def get_retriever(store, search_type: str = 'mmr', k: int = 10):
+        search_kwargs = {'k': k}
+        if search_type == 'mmr':
+            search_kwargs['fetch_k'] = 20  # Lấy 20 kết quả đầu tiên
+            search_kwargs['lambda_mult'] = 0.7  # Cân bằng giữa liên quan và đa dạng
+        elif search_type == 'similarity_score_threshold':
+            search_kwargs['score_threshold'] = 0.8  # Tăng từ 0.6 lên 0.8
+        return store.as_retriever(search_type=search_type, search_kwargs=search_kwargs)
 
     @classmethod
     def get_collections(cls) -> List[Dict]:
@@ -98,4 +105,12 @@ class QdrantManager:
 
     @staticmethod
     def get_data_from_store(retriever, question):
-        return retriever.invoke(question)
+        compressor = CohereRerank(top_n=6)
+        compression_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor, base_retriever=retriever,
+        )
+        compressed_docs = compression_retriever.invoke(
+            question
+        )
+        return compressed_docs
+        # return retriever.invoke(question)

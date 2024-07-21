@@ -1,5 +1,5 @@
 import streamlit as st
-from config import QDRANT_CONFIG, MONGODB_CONFIG, MODEL_CONFIG, LANGCHAIN
+from config import QDRANT_CONFIG, MONGODB_CONFIG, MODEL_CONFIG, LANGCHAIN, COHERE
 from database import QdrantManager, MongoManager
 from ui import *
 from models import Model
@@ -12,6 +12,7 @@ class Main:
     def initialize():
         if "initialized" not in st.session_state:
             os.environ.update({str(k): str(v) for k, v in LANGCHAIN.items()})
+            os.environ['COHERE_API_KEY'] = COHERE['API_KEY']
             st.session_state.chat_collection = MONGODB_CONFIG["CHAT_HISTORY"]
             st.session_state.login_collection =  MONGODB_CONFIG["LOGIN_HISTORY"]
             st.session_state.ban_collection = MONGODB_CONFIG["BAN_COLLECTION"]
