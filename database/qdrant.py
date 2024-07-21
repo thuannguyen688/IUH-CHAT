@@ -53,13 +53,13 @@ class QdrantManager:
         )
 
     @staticmethod
-    def get_retriever(store, search_type: str = 'mmr', k: int = 10):
+    def get_retriever(store, search_type: str = 'similarity_score_threshold', k: int = 15):
         search_kwargs = {'k': k}
         if search_type == 'mmr':
-            search_kwargs['fetch_k'] = 20  # Lấy 20 kết quả đầu tiên
-            search_kwargs['lambda_mult'] = 0.7  # Cân bằng giữa liên quan và đa dạng
+            search_kwargs['fetch_k'] = 20
+            search_kwargs['lambda_mult'] = 0.5
         elif search_type == 'similarity_score_threshold':
-            search_kwargs['score_threshold'] = 0.8  # Tăng từ 0.6 lên 0.8
+            search_kwargs['score_threshold'] = 0.6
         return store.as_retriever(search_type=search_type, search_kwargs=search_kwargs)
 
     @classmethod
@@ -105,7 +105,7 @@ class QdrantManager:
 
     @staticmethod
     def get_data_from_store(retriever, question):
-        compressor = CohereRerank(top_n=6)
+        compressor = CohereRerank(top_n=7)
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=compressor, base_retriever=retriever,
         )

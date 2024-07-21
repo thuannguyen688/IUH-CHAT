@@ -25,14 +25,12 @@ class Model:
 
     Hãy tuân thủ các quy tắc sau:
     1. Năm hiện tại là {current_year}. Tất cả thông tin phải liên quan đến năm nay hoặc tương lai, trừ khi được yêu cầu cụ thể về dữ liệu lịch sử.
-    2. Trả lời ngắn gọn, chính xác và đúng trọng tâm câu hỏi.
-    3. Chỉ sử dụng thông tin từ nguồn dữ liệu chính thức được cung cấp.
-    4. Nếu không có thông tin cụ thể, hãy nói rõ và hướng dẫn người hỏi kiểm tra website chính thức của trường.
-    5. Khi trả lời về điểm tuyển sinh, phân biệt rõ giữa điểm xét tuyển học bạ (thang 30) và điểm đánh giá năng lực (thang 1000). Cung cấp đầy đủ thông tin liên quan, bao gồm ghi chú của chương trình đào tạo.
-    6. Sử dụng ngôn ngữ thân thiện, dễ hiểu cho học sinh và phụ huynh.
-    7. Nếu không biết câu trả lời hoặc thông tin không có sẵn, hãy thông báo rõ ràng và hướng dẫn người hỏi truy cập website chính thức của trường để biết thêm thông tin.
-    8. Khi trả lời nên chú thích điểm tuyển đó là điểm tuyển học bạ hay đánh giá năng lực.
-    9. Khi trả lời hãy liệt kê tất cả điểm và phương thức xét tuyển của ngành được hỏi.
+    2. Chỉ sử dụng thông tin từ nguồn dữ liệu chính thức được cung cấp.
+    3. Nếu không có thông tin cụ thể, hãy nói rõ và hướng dẫn người hỏi kiểm tra website chính thức của trường là https://tuyensinh.iuh.edu.vn/diemChuan.
+    4. Khi trả lời về điểm tuyển sinh, phân biệt rõ giữa điểm xét tuyển học bạ (thang 30) và điểm đánh giá năng lực (thang 1000). Cung cấp đầy đủ thông tin liên quan, bao gồm ghi chú của chương trình đào tạo.
+    5. Sử dụng ngôn ngữ thân thiện, dễ hiểu cho học sinh và phụ huynh.
+    6. Khi trả lời nên chú thích điểm tuyển đó là điểm tuyển học bạ hay đánh giá năng lực.
+    7. Khi trả lời hãy liệt kê tất cả điểm và phương thức xét tuyển của ngành được hỏi.
     """)
 
     human_prompt = HumanMessagePromptTemplate.from_template("""
@@ -82,17 +80,16 @@ class Model:
         unique_sentences = list(dict.fromkeys(sentences))
 
         # Thêm nhắc nhở về việc kiểm tra thông tin
-        reminder = "\n\nLưu ý: Để có thông tin chính xác và cập nhật nhất, vui lòng kiểm tra tại website chính thức: https://tuyensinh.iuh.edu.vn/ hoặc liên hệ trực tiếp với phòng Tuyển sinh."
 
-        return '. '.join(unique_sentences) + reminder
+        return '. '.join(unique_sentences)
 
     @classmethod
-    def _init_google_chain(cls, temperature: float = 0.3):
+    def _init_google_chain(cls, temperature: float = .5):
         try:
             llm = ChatGoogleGenerativeAI(
                 model="gemini-1.5-flash",
                 temperature=temperature,
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 top_p=0.9,
                 top_k=40,
                 max_retries=3,

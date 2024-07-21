@@ -11,8 +11,6 @@ class Chat:
         try:
             start = time.time()
             docs = st.session_state.qdrant_db.get_data_from_store(st.session_state.retriever, question)
-            # chat_history = cls.format_chat_history()
-            # result = st.session_state.model.chat(docs, question, chat_history)
             result = st.session_state.model.chat(docs, question)
             processing_time = time.time() - start
             cls.save_chat_result(question, result, processing_time)
@@ -21,13 +19,7 @@ class Chat:
             st.write(e)
             return "Hệ thống vừa cập nhật vui lòng đăng nhập lại", 0, ""
 
-    # @staticmethod
-    # def format_chat_history():
-    #     history = []
-    #     for message in st.session_state.messages[-5:]:  # Get last 5 messages
-    #         role = "Human" if message["role"] == "user" else "Assistant"
-    #         history.append(f"{role}: {message['content']}")
-    #     return "\n".join(history)
+
 
     @staticmethod
     def save_chat_result(question, answer, processing_time):
@@ -57,9 +49,17 @@ class Chat:
 
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
+            full_response = ""
             with st.spinner('Đang xử lý câu hỏi...'):
                 answer, processing_time, docs = cls.get_answer(prompt)
-            message_placeholder.markdown(answer)
+
+            # Stream the response
+            for char in answer:
+                full_response += char
+                time.sleep(0.01)  # Adjust this value to control the speed of streaming
+                message_placeholder.markdown(full_response + "|")
+            message_placeholder.markdown(full_response)
+
             st.caption(f"Xử lý hoàn tất trong {processing_time:.2f} giây!")
 
         st.session_state.messages.append({"role": "assistant", "content": answer, "processing_time": processing_time})
